@@ -1,0 +1,15 @@
+{
+  // Node 24 for THIS workspace only; the machine-wide `node` stays untouched.
+  // ~/.zprofile (login shells) re-prepends Homebrew's default node, so this
+  // workspace's terminals start as interactive NON-login shells.
+  "terminal.integrated.env.osx": {
+    "PATH": "/opt/homebrew/opt/node@24/bin:${env:PATH}"
+  },
+  "terminal.integrated.profiles.osx": {
+    "zsh (Node 24)": {
+      "path": "/bin/zsh",
+      "args": ["-i"]
+    }
+  },
+  "terminal.integrated.defaultProfile.osx": "zsh (Node 24)"
+}

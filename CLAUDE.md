@@ -53,8 +53,16 @@ Plain-Node experiments go in `playground/` (scratch scripts, not part of the Nes
 ### Current stack and gotchas (verify before relying on these)
 
 - **ESM** (`"type": "module"`): relative TS imports must end in `.js` (e.g. `./app.module.js`).
-- **Node ≥ 24** is required (`.nvmrc` = 24, `engines`). On 2026-10-13 the machine's default `node` was
-  v23.11.0. Homebrew has `node@24` installed but not linked. Fixing this is a Day 1 task.
+- **Node ≥ 24** is required (`.nvmrc` = 24, `engines`). This is a company laptop: the machine-wide
+  `node` (Homebrew, v23.11) must stay as it is for other projects.
+  - Node 24 is used **only in this project**, from the unlinked Homebrew keg `/opt/homebrew/opt/node@24/bin`.
+  - `.vscode/settings.json` prepends that keg to PATH and opens this workspace's terminals as
+    **non-login** zsh. Login shells run `~/.zprofile` → `brew shellenv`, which would put Node 23 back in front.
+  - **In your own Bash tool calls**, always run node/npm/npx/prisma/nest with
+    `export PATH="/opt/homebrew/opt/node@24/bin:$PATH" && …`.
+  - Build, unit tests and e2e tests were verified passing on Node 24.21 on 2026-10-13.
+- **Never change machine-wide tooling**: global Node, `brew link`, shell profiles, global npm packages,
+  global git config, or Keychain. Everything must be scoped to this repo or this workspace.
 - **NestJS 12**, `@nestjs/config` (global). `main.ts` already sets a global `ValidationPipe`
   (`whitelist`, `forbidNonWhitelisted`, `transform`) and `enableShutdownHooks()`.
 - **Prisma 7.10** with the `prisma-client` generator → `src/generated/prisma` (gitignored; run
@@ -102,7 +110,7 @@ change how other projects on the machine behave.
 
 | Day | Date | Topic | Project / exercise | Interview focus |
 |---|---|---|---|---|
-| 1 | 10-13 | Setup & orientation: what Node is (V8 + libuv), the single-thread model, a tour of this repo | Link Node 24, run the app, hit `/health`, run the tests, read every file in `src/` | "What is Node? Why is it good for I/O-bound work?" |
+| 1 | 10-13 | Setup & orientation: what Node is (V8 + libuv), the single-thread model, Node release lines (even = LTS), how PATH picks `node`; a tour of this repo | Confirm `node -v` = 24 in a new VS Code terminal and explain why the workspace setting works; run the app, hit `/health`, run the tests, read every file in `src/` | "What is Node? Why is it good for I/O-bound work?" |
 | 2 | 10-14 | ★ Event loop: phases, microtasks (`nextTick` vs promises), `setTimeout` vs `setImmediate`, starvation | `playground/` predict-the-output puzzles | Event loop ordering puzzles |
 | 3 | 10-15 | ★ Async: callbacks → promises → async/await, `Promise.all/allSettled/race/any`, blocking the loop, libuv thread pool | Implement `promiseAll` and `promisePool(limit)` | Implement Promise.all; what blocks the loop? |
 | 4 | 10-16 | Modules: CJS vs ESM, the require cache, the module wrapper, top-level await, why `.js` imports here; package.json, semver, lockfiles, `process`, env, exit codes, signals | Same module written CJS and ESM; inspect `require.cache` | CJS vs ESM; `^` vs `~`; why commit the lockfile? |
@@ -184,4 +192,4 @@ deep clone, memoize, retry with backoff, async queue, LRU cache, flatten, implem
 
 | Day | Date | Done | Notes / next |
 |---|---|---|---|
-| 0 | 2026-10-13 | Repo-local git identity + classic-token push auth (this repo only); tutor brief written; initial commit pushed to `pkCodes30/LearningNode` | Next: Day 1 setup (link Node 24) and confirm daily time budget. Open items: the token has every scope (should be `repo` only); the repo is public (private recommended) |
+| 0 | 2026-10-13 | Repo-local git identity + classic-token push auth (this repo only); tutor brief written; initial commit pushed to `pkCodes30/LearningNode`; Node 24 scoped to this workspace via `.vscode/settings.json` (no global change) | Next: Day 1 and confirm daily time budget. Open items: the token has every scope (should be `repo` only); the repo is public (private recommended) |

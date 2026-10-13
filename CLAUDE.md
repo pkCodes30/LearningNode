@@ -74,15 +74,19 @@ change how other projects on the machine behave.
 
 - Commit identity, set in the repo-local `.git/config`: name `pkCodes30`, email `archanaprakhar30@gmail.com`.
   The personal GitHub account is `pkCodes30`.
-- Push auth is also repo-local: HTTPS with a **fine-grained personal access token** scoped to this one repo.
+- Push auth is also repo-local: HTTPS with a **classic personal access token** (`ghp_…`, 40 chars) for
+  `pkCodes30`. It should have only the `repo` scope.
   - Remote: `https://pkCodes30@github.com/pkCodes30/LearningNode.git`
   - `.git/config` sets `credential.helper` to `""` first. This resets the system-level osxkeychain
     helper, which may hold the work GitHub login. It then adds `store --file=/Users/ai/.git-credentials-pkcodes30`.
     That token file (mode 600) is read **only** by this repo. Never put this token in the macOS
     Keychain: a second github.com login there could be picked up by work repos.
   - The token must never pass through chat or the transcript. The user writes it to the file
-    themselves. If a push fails with 401/403, the token has probably expired: ask the user to
-    regenerate it and rewrite the file.
+    themselves with `printf 'https://pkCodes30:%s@github.com\n' "$(pbpaste)" > ~/.git-credentials-pkcodes30`.
+  - After a token change, check it **before** pushing: confirm the length and test it with
+    `curl -H "Authorization: Bearer …" https://api.github.com/user`, without printing the token.
+    A git 401 makes the `store` helper **erase** the file. (On 2026-10-13 the token was pasted twice
+    and got wiped this way.)
 - The machine's **global** git config holds the learner's work identity. **Never** use it here, never
   write it into any file in this repo, and **never** change global git config or Keychain entries.
 - **Before every commit**, run `git config user.email` and confirm it is the personal email. If it isn't, stop.
@@ -180,4 +184,4 @@ deep clone, memoize, retry with backoff, async queue, LRU cache, flatten, implem
 
 | Day | Date | Done | Notes / next |
 |---|---|---|---|
-| 0 | 2026-10-13 | Repo-local git identity + token-based push auth + remote set (personal, this repo only); tutor brief written; initial commit | Next: user creates the `pkCodes30/LearningNode` repo + fine-grained token and writes it to the token file → first push. Then Day 1 setup (link Node 24) and confirm daily time budget |
+| 0 | 2026-10-13 | Repo-local git identity + classic-token push auth (this repo only); tutor brief written; initial commit pushed to `pkCodes30/LearningNode` | Next: Day 1 setup (link Node 24) and confirm daily time budget. Open items: the token has every scope (should be `repo` only); the repo is public (private recommended) |

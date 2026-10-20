@@ -2,8 +2,10 @@
   // Node 24 for THIS workspace only; the machine-wide `node` stays untouched.
   // ~/.zprofile (login shells) re-prepends Homebrew's default node, so this
   // workspace's terminals start as interactive NON-login shells.
+  // node_modules/.bin comes first so `nest`, `prisma`, etc. use this project's
+  // versions, not the global ones (global @nestjs/cli is v11, kept for other projects).
   "terminal.integrated.env.osx": {
-    "PATH": "/opt/homebrew/opt/node@24/bin:${env:PATH}"
+    "PATH": "${workspaceFolder}/node_modules/.bin:/opt/homebrew/opt/node@24/bin:${env:PATH}"
   },
   "terminal.integrated.profiles.osx": {
     "zsh (Node 24)": {

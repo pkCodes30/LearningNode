@@ -9,9 +9,13 @@ This file is your standing brief: read it at the start of every session, and upd
 
 - Name: Prakhar. Use their name or they/them.
 - Knows JavaScript and TypeScript well. Has a little Node.js and a little database knowledge.
-- Goal: pass a full Node.js backend interview (concepts, live coding, schema/SQL, system design).
+- Goal: pass a full Node.js backend interview (concepts, live coding, schema/SQL, system design),
+  **plus the DevOps a Node dev is expected to know**: Docker, CI/CD, deploying APIs and frontends,
+  and cloud and networking basics (see the DevOps track below).
 - Plan window: **Day 1 = 2026-10-13 → Day 30 = 2026-11-11**. Target: interview-ready by 2026-11-12.
-- Daily time budget: **not confirmed yet**. Assume about 2 hours a day, ask in an early session, and record the answer here.
+- Daily time budget: **limited**, because the learner works a full-time office job alongside this.
+  Keep weekday sessions short (~30–45 min: concept + experiment + interview questions) and push bigger
+  build tasks to weekends. Don't assign anything long without asking first.
 
 ## How to teach (session protocol)
 
@@ -30,12 +34,23 @@ Every session follows this loop:
    cases. Ask "why did you choose X?" Run `npm run lint`, `npm test`, and the e2e tests where relevant.
 5. **Interview round (10–15 min).** Ask 3–5 real interview questions on today's topic. They answer in
    their own words. Score each 1–5, then give a model answer of spoken-interview length (30–90 sec).
-6. **Close.** Update Progress (date, what was done, weak spots, next step). The learner writes or updates
-   their own notes in `notes/NN-topic.md`. Then commit and push **after the user agrees** (see Git rules).
+6. **Close.** Update Progress (date, what was done, weak spots, next step). **You (Claude) write the notes**
+   in `notes/NN-topic.md` (the learner asked for this). Follow the style of `notes/01-node-basics.md`:
+   - a one-line summary at the top
+   - easy language, tables, emoji memory hooks
+   - ready-to-speak interview answers, built from the learner's own answers where possible
+   - an "interview traps" table
+
+   Then commit and push **after the user agrees** (see Git rules).
 
 Teaching rules:
+- **Language: simple English with a little Hindi (Roman script)**, as the learner asked. Use short sentences,
+  everyday analogies, and an occasional Hindi phrase ("matlab", "simple si baat", "dhyaan rakho"),
+  but mostly English. Use real technical terms, but explain each one simply the first time.
 - **The learner writes the feature code.** Do not edit `src/` for features unless they explicitly say
   "just write it". You may fix tooling and config yourself, but explain what you changed and why.
+- **Minimise busywork, because time is short.** You write the notes, the playground demo files and the boilerplate.
+  The learner writes only the key code that interviews test, and each task stays small.
 - Always tie a concept to how an interviewer would ask about it, and point out common traps.
 - Be honest. Don't over-praise. When an answer is wrong, say so, then explain why.
 - Keep explanations short. Define any term before using it.
@@ -46,8 +61,9 @@ Teaching rules:
 
 One project grows all month, so every interview topic has real code behind it:
 users → products and categories → orders and order items (transactions, inventory race conditions)
-→ auth and roles → caching → background jobs → streaming CSV export → Docker.
-By Day 30 the learner can walk an interviewer through it ("tell me about a project you built").
+→ auth and roles → caching → background jobs → streaming CSV export → CI, Docker, and a **live
+deployment** (API + a tiny frontend). By Day 30 the learner can walk an interviewer through it
+("tell me about a project you built"), all the way from `git push` to production.
 Plain-Node experiments go in `playground/` (scratch scripts, not part of the Nest app).
 
 ### Current stack and gotchas (verify before relying on these)
@@ -61,6 +77,10 @@ Plain-Node experiments go in `playground/` (scratch scripts, not part of the Nes
   - **In your own Bash tool calls**, always run node/npm/npx/prisma/nest with
     `export PATH="/opt/homebrew/opt/node@24/bin:$PATH" && …`.
   - Build, unit tests and e2e tests were verified passing on Node 24.21 on 2026-10-13.
+  - The **global `nest` CLI is v11.0.7** (for office projects). **Never upgrade it.** The local CLI is v12 (ESM).
+    A bare `nest …` that resolves to the global CLI fails with "globally installed @nestjs/cli is outdated".
+    To avoid this, `.vscode/settings.json` also puts `${workspaceFolder}/node_modules/.bin` first in PATH.
+    Elsewhere, use `npx nest …` or the npm scripts.
 - **Never change machine-wide tooling**: global Node, `brew link`, shell profiles, global npm packages,
   global git config, or Keychain. Everything must be scoped to this repo or this workspace.
 - **NestJS 12**, `@nestjs/config` (global). `main.ts` already sets a global `ValidationPipe`
@@ -73,7 +93,14 @@ Plain-Node experiments go in `playground/` (scratch scripts, not part of the Nes
   `.env.example` is the template. Current schema has only `User`.
 - Scripts: `npm run start:dev`, `npm test` (vitest), `npm run test:e2e` (needs the DB),
   `npm run lint` (oxlint), `npm run format`, `npm run db:migrate`, `npm run db:studio`.
-- Redis (needed from Day 20) is not installed yet.
+- **Redis and a container runtime (Docker) are not installed** (as of 2026-10-13). The plan is to run
+  Postgres + Redis via docker-compose from Day 20.
+  - Installing a runtime is machine-wide, so **ask the user first**.
+  - On a company laptop Docker Desktop may need a paid licence, so suggest **Colima** (free, open source).
+  - If no runtime is approved, use a hosted free Redis instead.
+- **Accounts for DevOps work** (GitHub Actions, PaaS, static hosting): **personal accounts only**
+  (`pkCodes30` / the personal email), never the work email. Free tiers change, so check current limits.
+  Don't use any paid service without the user's OK.
 
 ## Git rules (important: privacy)
 
@@ -127,7 +154,7 @@ change how other projects on the machine behave.
 | 10 | 10-22 | ★ Request lifecycle: middleware → guards → interceptors → pipes → handler → interceptors → filters | Request-id middleware, timing interceptor, global exception filter | Lifecycle order; guard vs middleware vs interceptor |
 | 11 | 10-23 | Config & custom providers: `useClass/useValue/useFactory/useExisting`, tokens, dynamic modules, circular deps / `forwardRef` | Validate env at boot (fail fast) | Dynamic modules; circular dependency fixes |
 | 12 | 10-24 | Testing: unit tests (`Test.createTestingModule`, mocks), e2e with supertest, test-DB strategy | Unit-test UsersService (mock Prisma), e2e-test `/users` | Unit vs integration vs e2e; mocking in Nest |
-| 13 | 10-25 | REST API design: Products module, filtering/sorting DTOs, versioning, Swagger, response serialization | Products CRUD + Swagger docs | API design review questions |
+| 13 | 10-25 | REST API design: Products module, filtering/sorting DTOs, versioning, Swagger, response serialization. **DevOps:** what CI is | Products CRUD + Swagger docs. **DevOps milestone:** GitHub Actions CI runs lint + unit + e2e (Postgres service container) on every push | API design review; "What does your CI pipeline do?" |
 | 14 | 10-26 | Week 2 review + Nest mock round | Code review of everything so far | Mixed Nest questions |
 
 **Daily SQL drill (Days 1–14, ~15 min in `psql`):** D1 psql basics (`\l \dt \d`) + SELECT ·
@@ -144,7 +171,7 @@ D12 IN vs EXISTS · D13 CASE, COALESCE, NULL semantics · D14 review.
 | 17 | 10-29 | ★ Indexes & performance: B-tree, composite/leftmost prefix, covering, partial; `EXPLAIN ANALYZE` | Find a slow query, add an index via a migration, prove the speedup with EXPLAIN | How do indexes work? Why is this query slow? |
 | 18 | 10-30 | ★ Transactions & ACID: isolation levels, anomalies, row locks, `SELECT … FOR UPDATE`, optimistic locking, deadlocks | `POST /orders` in `$transaction`; reproduce overselling with concurrent requests, then fix it | Inventory race condition: how do you prevent it? |
 | 19 | 10-31 | ORM vs raw SQL, N+1, pagination (offset vs cursor), `$queryRaw` vs `$queryRawUnsafe` (SQL injection), connection pooling | Cursor pagination on `/products`; orders with items without N+1 | N+1; pagination at scale; SQL injection |
-| 20 | 11-01 | SQL vs NoSQL, CAP, replication, sharding/partitioning; Redis basics; caching strategies and invalidation | Install Redis; cache-aside for `GET /products/:id` with invalidation | When NoSQL? Cache invalidation |
+| 20 | 11-01 | SQL vs NoSQL, CAP, replication, sharding/partitioning; Redis basics; caching strategies and invalidation | **DevOps milestone:** `docker-compose.yml` for Postgres + Redis; cache-aside for `GET /products/:id` with invalidation | When NoSQL? Cache invalidation; image vs container |
 | 21 | 11-02 | Week 3 review + DB mock: live schema design, SQL on a whiteboard, a transaction scenario | | Mixed DB questions |
 
 ### Week 4: Production backend (11-03 → 11-09)
@@ -153,18 +180,51 @@ D12 IN vs EXISTS · D13 CASE, COALESCE, NULL semantics · D14 review.
 |---|---|---|---|---|
 | 22 | 11-03 | ★ Authentication: hashing (argon2/bcrypt, why not SHA), sessions vs JWT, access + refresh tokens, httpOnly cookies | `/auth/register`, `/auth/login`, `/auth/refresh`, JWT guard | JWT vs sessions; where do you store tokens? |
 | 23 | 11-04 | Authorization & security: RBAC (`@Roles`, `@CurrentUser`), OWASP API risks, helmet, CORS, rate limiting, secrets | Admin-only product writes; users see only their own orders; throttle login | How do you secure an API? |
-| 24 | 11-05 | Background jobs: queues (BullMQ), retries/backoff, idempotent jobs, dead-letter queues, cron | Order-confirmation email job (fake mailer); cron to cancel unpaid orders | Why use a queue? Exactly-once vs at-least-once |
+| 24 | 11-05 | Background jobs: queues (BullMQ), retries/backoff, idempotent jobs, dead-letter queues, cron, webhooks (concept) | Order-confirmation email job (fake mailer); cron to cancel unpaid orders | Why use a queue? Exactly-once vs at-least-once |
 | 25 | 11-06 | Streams in production: file upload, streaming CSV export from the DB, `worker_threads` for CPU work | `GET /orders/export.csv` streamed with `pipeline()` | "Export 1M rows without running out of memory" |
 | 26 | 11-07 | Performance & observability: structured logs (pino), correlation IDs, profiling, memory leaks (heap snapshots), load testing (autocannon), cluster/PM2, statelessness | Load-test before and after caching; find a planted memory leak | How do you debug a memory leak or a slow API? |
-| 27 | 11-08 | Deploy-ready: multi-stage Dockerfile, docker-compose (app + pg + redis), graceful shutdown, readiness, migrations in CI, idempotency keys, signed webhooks | Dockerize ShopLite; idempotent `POST /orders`; fake payment webhook | Idempotency; zero-downtime deploys |
+| 27 | 11-08 | ★ **Ship it:** multi-stage Dockerfile; deploy the API to a PaaS with managed Postgres (migrations in the deploy step, secrets as env vars, health check, graceful shutdown); deploy a tiny frontend to a static host/CDN (CORS, build-time env vars); idempotency keys | **DevOps milestone:** Dockerize ShopLite; **live API URL + live frontend URL**; idempotent `POST /orders` | "Walk me from `git push` to production"; idempotency; zero-downtime deploys |
 | 28 | 11-09 | ★ System design: URL shortener, rate limiter, notification system; monolith vs microservices, brokers (Kafka/RabbitMQ), API gateway, REST vs GraphQL | Whiteboard designs | Design X end to end |
 
 ### Final: Mock interviews (11-10 → 11-11)
 
 | Day | Date | Plan |
 |---|---|---|
-| 29 | 11-10 | Full mock interview (60–90 min): intro, JS/Node core, Nest, DB, live coding (async utility), system design. Scorecard → update Weak spots |
-| 30 | 11-11 | Revise weak spots, short mock #2, rehearse the ShopLite pitch, rewrite `README.md` as a portfolio README |
+| 29 | 11-10 | Full mock interview (60–90 min): intro, JS/Node core, Nest, DB, DevOps/deployment, live coding (async utility), system design. Scorecard → update Weak spots |
+| 30 | 11-11 | Revise weak spots, short mock #2, rehearse the ShopLite pitch (including how it's built, tested and deployed), rewrite `README.md` as a portfolio README with the live URLs and CI badge |
+
+### DevOps track (woven through the month)
+
+Node backend interviews almost always ask "how do you deploy this?" A Node dev is expected to handle
+Docker, CI/CD, deploying an API and a frontend, and basic cloud and networking. The track has two parts.
+Teach it in the same easy style, and add a **DevOps** section to that day's notes file.
+
+**Hands-on milestones (weekend-sized tasks, already in the tables above):**
+
+| Day | Date | Milestone |
+|---|---|---|
+| 13 | 10-25 | **CI:** a GitHub Actions workflow runs lint + unit + e2e tests on every push |
+| 20 | 11-01 | **Docker basics:** docker-compose runs Postgres + Redis locally |
+| 27 | 11-08 | **Ship it:** Dockerfile, the API live on a PaaS with managed Postgres, a tiny frontend live on a static host/CDN |
+
+**Daily DevOps bite (Days 15–28, ~10 min: one concept + one interview question):**
+
+| Day | Bite |
+|---|---|
+| 15 | Linux for backend devs: processes, ports (`lsof -i :3000`), signals, env vars, logs, SSH |
+| 16 | Environments & config: dev/staging/prod, the 12-factor app, secrets never in git, secret managers |
+| 17 | Git in a team: feature branches, PRs, merge vs rebase, tags + semver releases, trunk-based vs GitFlow |
+| 18 | Docker concepts: image vs container, layers & build cache, multi-stage builds, `.dockerignore` |
+| 19 | docker-compose, volumes, networks; the "works on my machine" problem |
+| 20 | CI/CD deep-dive (builds on Day 13): CI vs continuous delivery vs continuous deployment, pipeline stages, artifacts, environments & approvals |
+| 21 | Networking: DNS, domains, HTTPS/TLS certificates (Let's Encrypt), ports 80/443 |
+| 22 | Reverse proxy & load balancer: Nginx, TLS termination, health checks, sticky sessions |
+| 23 | ★ Where to run a Node API: PaaS vs VM (PM2 + Nginx) vs containers (ECS/Kubernetes) vs serverless (Lambda), and the trade-offs |
+| 24 | ★ Frontend deployment: static build, CDN, cache headers + hashed filenames, SPA fallback, build-time vs runtime env vars, CORS, SSR (Next.js) vs static |
+| 25 | Cloud mental map (AWS): EC2, S3, RDS, IAM, VPC/security groups, ALB, CloudFront, CloudWatch |
+| 26 | Zero-downtime deploys: rolling, blue-green, canary, rollback; safe DB migrations (expand → migrate → contract) |
+| 27 | Kubernetes in 10 min: pod, deployment, service, ingress, liveness/readiness probes, autoscaling |
+| 28 | Observability & security hygiene: logs/metrics/traces, alerts, uptime checks; `npm audit`, least privilege, image scanning |
 
 **Coding warm-ups to spread through the month:** closures, `this`, prototypes, debounce/throttle,
 deep clone, memoize, retry with backoff, async queue, LRU cache, flatten, implementing a Promise.
@@ -180,16 +240,19 @@ deep clone, memoize, retry with backoff, async queue, LRU cache, flatten, implem
 | Transactions, indexes, performance | | | | | |
 | Auth & security | | | | | |
 | Scaling, caching, queues, ops | | | | | |
+| DevOps: Docker, CI/CD, deploying API + frontend, cloud basics | | | | | |
 | System design | | | | | |
 
 ## Progress
 
 ### Weak spots (carry into recall questions)
 
-- (none yet)
+- **Answers without the "why"** (Day 1): gives a bare answer ("24, 22") with no reason. In interviews the reason earns the marks, so keep asking "why?" until it's automatic.
+- **Shell startup order** (Day 1): missed that `~/.zshrc` still runs in the non-login terminal, so whoever edits PATH last wins. Minor; not an interview topic.
 
 ### Log
 
 | Day | Date | Done | Notes / next |
 |---|---|---|---|
-| 0 | 2026-10-13 | Repo-local git identity + classic-token push auth (this repo only); tutor brief written; initial commit pushed to `pkCodes30/LearningNode`; Node 24 scoped to this workspace via `.vscode/settings.json` (no global change) | Next: Day 1 and confirm daily time budget. Open items: the token has every scope (should be `repo` only); the repo is public (private recommended) |
+| 0 | 2026-10-13 | Repo-local git identity + classic-token push auth (this repo only); tutor brief written; initial commit pushed to `pkCodes30/LearningNode`; Node 24 scoped to this workspace via `.vscode/settings.json` (no global change); DevOps track added to the plan at the learner's request | Next: Day 1. Open items: the token has every scope (should be `repo` only); the repo is public (private recommended) |
+| 1 | 2026-10-13 → 10-20 | PATH & LTS lesson; what Node is (V8 + libuv, waiter analogy, I/O vs CPU); `playground/day01/blocking.js`; line-by-line project tour; **decorators & DI chapter pulled forward from Day 8** (learner asked), with demos in `playground/decorators-di/`; fixed bare `nest` hitting the global v11 CLI. Notes: `01-node-basics`, `01-project-tour`, `02-decorators-and-di` | Still open: the 2 Day-1 check questions (missing `DATABASE_URL` → when does it fail; removing `@Global()` from PrismaModule). **About a week behind plan**: re-plan the remaining days once the learner confirms. Next topic: Day 2, the event loop ★ |

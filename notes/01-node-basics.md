@@ -17,10 +17,10 @@
 
 ## 2. Which Node version?
 
-| Version | Type | Support | Use in production? |
-|---|---|---|---|
-| **Even** (20, 22, 24) | **LTS** | ~2.5 years | ✅ Yes |
-| **Odd** (21, 23, 25) | Current | ~6 months | ❌ Never |
+| Version               | Type    | Support    | Use in production? |
+|-----------------------|---------|------------|--------------------|
+| **Even** (20, 22, 24) | **LTS** | ~2.5 years | ✅ Yes             |
+| **Odd** (21, 23, 25)  | Current | ~6 months  | ❌ Never           |
 
 🧠 **Memory hook:** **E**ven = **E**nterprise.
 
@@ -29,11 +29,11 @@
 
 ## 3. What is Node? Three parts
 
-| Part | Simple meaning |
-|---|---|
-| **V8** | 🧠 The *brain*. Understands and runs JS (same engine as Chrome). Knows nothing about files or network. |
-| **libuv** | 🙌 The *hands*. Does the slow outside work (files, network, timers). Has the **event loop** + a **thread pool (4 threads)**. |
-| **Node APIs** | 🔘 The *buttons*: `fs`, `http`, `crypto`. Your JS presses them, and libuv does the work. |
+| Part          | Simple meaning                                                                          |
+|---------------|-----------------------------------------------------------------------------------------|
+| **V8**        | 🧠 The *brain*: runs JS (same engine as Chrome). Knows nothing about files or network   |
+| **libuv**     | 🙌 The *hands*: files, network, timers. Owns the **event loop** + a **thread pool (4)** |
+| **Node APIs** | 🔘 The *buttons*: `fs`, `http`, `crypto`. Your JS presses them; libuv does the work     |
 
 🧠 **Memory hook:** **"V8 thinks, libuv works, APIs connect."**
 
@@ -47,10 +47,12 @@
 
 ## 5. I/O-bound vs CPU-bound
 
-| | Meaning | Examples | Node? |
-|---|---|---|---|
-| **I/O-bound** | Waiting for something outside | DB query, API call, file read | ✅ Great |
-| **CPU-bound** | Heavy calculation | Image resize, big loops, video encoding | ❌ Blocks everyone (fix: `worker_threads`, Day 7) |
+|               | Meaning                      | Examples                       | Node?              |
+|---------------|------------------------------|--------------------------------|--------------------|
+| **I/O-bound** | Waiting on the outside world | DB query, API call, file read  | ✅ Great           |
+| **CPU-bound** | Heavy calculation            | image resize, big loops, video | ❌ Blocks everyone |
+
+Fix for CPU-bound work: move it off the main thread with `worker_threads` (Day 7).
 
 ## 6. "Node is single-threaded": only half true ½
 
@@ -91,8 +93,8 @@ File: `playground/day01/blocking.js`. Timer set for 100 ms + a 2-second `while` 
 
 ## ⚠️ Interview traps
 
-| They say… | You say… |
-|---|---|
-| "Single-threaded, so Node does one thing at a time?" | JS runs one thing at a time, but **I/O happens in parallel** in the background. |
-| "`setTimeout(fn, 0)` runs immediately?" | No. It runs **after the current code finishes**. |
-| "Node is good for everything?" | Not for CPU-heavy work. Use `worker_threads` or a separate service. |
+| They say…                                | You say…                                                    |
+|------------------------------------------|-------------------------------------------------------------|
+| "Single-threaded = one thing at a time?" | JS yes, but **I/O runs in parallel** in the background      |
+| "`setTimeout(fn, 0)` runs immediately?"  | No. It runs **after the current code finishes**             |
+| "Node is good for everything?"           | Not CPU-heavy work. Use `worker_threads` or another service |

@@ -23,10 +23,10 @@ node playground/decorators-di/02-mini-di.js
 
 ## 2. Two kinds of decorators
 
-| Kind | What it does | Example |
-|---|---|---|
-| 🏷️ **Sticker** (metadata) | Only **adds information**; doesn't change your code | `@Controller('health')`, `@Get()`, `@Injectable()` |
-| 🎁 **Wrapper** (behaviour) | **Wraps** the method and adds extra work before/after | a custom `@Log` that times every call |
+| Kind           | What it does                                 | Example                          |
+|----------------|----------------------------------------------|----------------------------------|
+| 🏷️ **Sticker** | Only **adds information** (metadata)         | `@Controller()`, `@Get()`        |
+| 🎁 **Wrapper** | **Wraps** the method, adds work before/after | a custom `@Log` timing each call |
 
 Most Nest decorators are **stickers**. Nest **reads** the stickers at startup and builds the app from them.
 
@@ -42,13 +42,13 @@ So `@Get('/hello')` = "call `Get('/hello')`, then use what it returns as the dec
 
 ## 5. Where can you put decorators? (the Nest cheat sheet)
 
-| Where | Nest examples | Meaning |
-|---|---|---|
-| **Class** | `@Module`, `@Controller('users')`, `@Injectable()`, `@Global()` | "What is this class?" |
-| **Method** | `@Get()`, `@Post()`, `@HttpCode(204)`, `@UseGuards(...)` | "Which route? Which extra rules?" |
-| **Parameter** | `@Body()`, `@Param('id')`, `@Query()`, `@Headers()` | "Which part of the request goes into this argument?" |
-| **Property** | `@IsEmail()`, `@MinLength(8)` (class-validator, in DTOs) | "Rules for this field" |
-| **Custom** | `@CurrentUser()`, `@Roles('admin')` (coming in Week 4) | Your own stickers |
+| Where         | Nest examples                                      | Meaning                      |
+|---------------|----------------------------------------------------|------------------------------|
+| **Class**     | `@Module` `@Controller` `@Injectable` `@Global`    | "What is this class?"        |
+| **Method**    | `@Get()` `@Post()` `@HttpCode(204)` `@UseGuards()` | "Which route? Extra rules?"  |
+| **Parameter** | `@Body()` `@Param('id')` `@Query()` `@Headers()`   | "Which part of the request?" |
+| **Property**  | `@IsEmail()` `@MinLength(8)` (in DTOs)             | "Rules for this field"       |
+| **Custom**    | `@CurrentUser()` `@Roles('admin')` (Week 4)        | Your own stickers            |
 
 ## 6. Under the hood: real code from YOUR project 🔍
 
@@ -81,11 +81,11 @@ class HealthController {
 }
 ```
 
-| Problem | Why it hurts |
-|---|---|
-| 🔗 **Tight coupling** | The controller must know *how* to build PrismaService (which needs ConfigService, which needs…). |
-| 🧪 **Hard to test** | You can't swap in a fake DB. Your tests hit the real database. |
-| 👯 **Many copies** | Each `new` = another DB connection pool. 10 classes = 10 pools. 💥 |
+| Problem               | Why it hurts                                                    |
+|-----------------------|-----------------------------------------------------------------|
+| 🔗 **Tight coupling** | Controller must know *how* to build PrismaService (+ its deps…) |
+| 🧪 **Hard to test**   | You can't swap in a fake DB. Tests hit the real database        |
+| 👯 **Many copies**    | Each `new` = another DB pool. 10 classes = 10 pools 💥          |
 
 ## 8. DI: just ask for it ✋
 
@@ -127,11 +127,11 @@ same PrismaService object shared? true            ← singleton ✅
 
 ## 11. Module rules 📦 (where the famous error comes from)
 
-| Key | Meaning |
-|---|---|
-| `providers` | What this module **creates** |
-| `exports` | What it **shares** with modules that import it |
-| `imports` | Other modules whose **exports** I want to use |
+| Key         | Meaning                                                                       |
+|-------------|-------------------------------------------------------------------------------|
+| `providers` | What this module **creates**                                                  |
+| `exports`   | What it **shares** with modules that import it                                |
+| `imports`   | Other modules whose **exports** I want to use                                 |
 | `@Global()` | Share my exports with **everyone**, no import needed (use rarely: DB, config) |
 
 😱 **The most common Nest error** (worded roughly like this):
@@ -146,11 +146,11 @@ same PrismaService object shared? true            ← singleton ✅
 
 ## 12. Scopes: how many copies? 👯
 
-| Scope | Copies | When |
-|---|---|---|
-| **DEFAULT (singleton)** | **One** for the whole app | 99% of the time. Fast. |
-| **REQUEST** | A new one **per HTTP request** | Per-request data (e.g. a tenant ID) |
-| **TRANSIENT** | A new one **for each class that asks** | Rare (e.g. a logger with its own context) |
+| Scope                   | Copies                            | When                                |
+|-------------------------|-----------------------------------|-------------------------------------|
+| **DEFAULT (singleton)** | **One** for the whole app         | 99% of the time. Fast.              |
+| **REQUEST**             | A new one **per HTTP request**    | Per-request data (e.g. tenant ID)   |
+| **TRANSIENT**           | A new one **per class that asks** | Rare (e.g. logger with own context) |
 
 ⚠️ **Real bug alert:** services are singletons, so **never store per-request data in a service field**
 (`this.currentUser = …`). User A and User B share the same object, so A could see B's data! 😱
@@ -165,12 +165,12 @@ and that's slower.
 
 ## 14. Custom providers (preview for Day 11)
 
-| Recipe | Meaning | Example use |
-|---|---|---|
-| `useClass` | "When someone asks for X, create class Y" | Real vs fake mailer |
-| `useValue` | "Give this ready-made value" | Config object, test mocks |
-| `useFactory` | "Run this function to build it" (can be async, can inject deps) | DB client that needs config |
-| `useExisting` | "X is just another name for Y" | Aliases |
+| Recipe        | Meaning                                             | Example use                 |
+|---------------|-----------------------------------------------------|-----------------------------|
+| `useClass`    | "When someone asks for X, create class Y"           | Real vs fake mailer         |
+| `useValue`    | "Give this ready-made value"                        | Config object, test mocks   |
+| `useFactory`  | "Run this function to build it" (async OK, deps OK) | DB client that needs config |
+| `useExisting` | "X is just another name for Y"                      | Aliases                     |
 
 ## 15. Lifecycle hooks + `enableShutdownHooks` 🔌
 
@@ -227,12 +227,12 @@ The same idea as `testApp.override(...)` in the demo. Because of DI, swapping is
 
 ## ⚠️ Interview traps
 
-| They say… | You say… |
-|---|---|
-| "Decorators run every time the method is called?" | No. They run **once at class definition**. (A *wrapper* decorator's inner function runs on each call.) |
-| "Inject it by its interface type." | Interfaces **don't exist at runtime**. Use a token with `@Inject('TOKEN')`. |
-| "Store the logged-in user in `this.user` in the service." | ❌ The service is a **singleton** shared by all requests, so data leaks between users. |
-| "Fix the circular dependency with `forwardRef` everywhere." | `forwardRef` is a band-aid. **Refactor** the shared logic into a third service. |
-| "`import type` is always better for TypeScript." | Not for injected classes. It **breaks DI** (the metadata becomes `Object`). |
-| "Is DI the same as IoC?" | IoC is the general idea (the framework controls flow). DI is one **way** to do IoC. |
-| "Nest uses the new standard JS decorators?" | Nest uses TypeScript's **legacy** `experimentalDecorators` (see `tsconfig.json`), which support parameter decorators and metadata. |
+| They say…                                  | You say…                                                           |
+|--------------------------------------------|--------------------------------------------------------------------|
+| "Decorators run on every method call?"     | No, **once**, at class definition (a wrapper's inner fn: per call) |
+| "Inject it by its interface type."         | Interfaces **vanish at runtime**. Use `@Inject('TOKEN')`           |
+| "Store the logged-in user in `this.user`." | ❌ **Singleton** shared by all requests → data leaks               |
+| "Fix circular deps with `forwardRef`."     | `forwardRef` is a band-aid. **Refactor** into a 3rd service        |
+| "`import type` is always better."          | Not for injected classes: **breaks DI** (`Object` metadata)        |
+| "Is DI the same as IoC?"                   | IoC = framework controls the flow. DI = one **way** to do IoC      |
+| "Nest uses standard JS decorators?"        | No: TS **legacy** `experimentalDecorators` (params + metadata)     |

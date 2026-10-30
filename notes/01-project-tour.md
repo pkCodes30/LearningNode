@@ -8,14 +8,14 @@
 
 ## 1. The restaurant map 🍽️
 
-| Nest piece | Restaurant role | In our code |
-|---|---|---|
-| `main.ts` | The owner who **opens the shop** in the morning | `src/main.ts` |
-| **Module** | A **department** (with a list of its people) | `AppModule`, `HealthModule`, `PrismaModule` |
-| **Controller** | The **reception counter**: takes a request at one URL, gives the reply | `AppController` (`/`), `HealthController` (`/health`) |
-| **Service / Provider** | The **worker in the back** who does the real work | `AppService`, `PrismaService` |
-| **DI container** | The **manager / HR**: creates everyone and gives each person their helpers | Nest itself |
-| **Decorator** (`@…`) | A **sticker** on a class or method that tells Nest what it is | `@Module`, `@Controller`, `@Get`, `@Injectable` |
+| Nest piece             | Restaurant role                             | In our code                      |
+|------------------------|---------------------------------------------|----------------------------------|
+| `main.ts`              | The owner who **opens the shop**            | `src/main.ts`                    |
+| **Module**             | A **department** with its own people        | `AppModule`, `HealthModule`      |
+| **Controller**         | The **reception counter** (request → reply) | `HealthController` (`/health`)   |
+| **Service / Provider** | The **back-room worker** doing real work    | `AppService`, `PrismaService`    |
+| **DI container**       | **HR**: hires everyone, gives them helpers  | Nest itself                      |
+| **Decorator** (`@…`)   | A **sticker** saying what a thing is        | `@Module`, `@Get`, `@Injectable` |
 
 ## 2. Startup timeline ⏱️
 
@@ -48,24 +48,26 @@ curl localhost:3000/health
 
 ## 4. Key lines to remember 🔑
 
-| Line | Meaning |
-|---|---|
-| `NestFactory.create(AppModule)` | Build the whole app from the master list |
-| `app.listen(process.env.PORT ?? 3000)` | **This line starts the server.** `??` = "if PORT is empty, use 3000" |
-| `await bootstrap();` | Top-level `await`, allowed because this project is **ESM** |
-| `import … from './app.module.js'` | `.js`, not `.ts`, because after compiling the file *is* `.js` (ESM needs full names) |
-| `constructor(private readonly x: XService)` | "I need an XService": Nest gives it automatically (**DI**) |
-| `@Global()` + `exports` | Share PrismaService with **every** module without importing it again |
-| `config.getOrThrow('DATABASE_URL')` | No DB URL? **Crash at startup** (fail fast, which is good) |
-| `onModuleInit` / `onModuleDestroy` | Nest calls these automatically: connect at start (inside `app.listen()`, just before the port opens), disconnect at shutdown |
+| Line                                        | Meaning                                               |
+|---------------------------------------------|-------------------------------------------------------|
+| `NestFactory.create(AppModule)`             | Build the whole app from the master list              |
+| `app.listen(process.env.PORT ?? 3000)`      | **Starts the server.** `??` = "PORT empty? use 3000"  |
+| `await bootstrap();`                        | Top-level `await`, OK because the project is **ESM**  |
+| `import … from './app.module.js'`           | `.js` not `.ts`: ESM needs the compiled file's name   |
+| `constructor(private readonly x: XService)` | "I need an XService", and Nest gives it (**DI**)      |
+| `@Global()` + `exports`                     | Share PrismaService with **every** module             |
+| `config.getOrThrow('DATABASE_URL')`         | No DB URL? **Crash at startup** (fail fast = good)    |
+| `onModuleInit` / `onModuleDestroy`          | Auto-called: connect at start, disconnect at shutdown |
+
+`onModuleInit` runs inside `app.listen()`, just **before** the port opens.
 
 ## 5. ValidationPipe options (main.ts)
 
-| Option | Simple meaning |
-|---|---|
-| `whitelist: true` | Only allow fields declared in the DTO (the data-shape class) |
-| `forbidNonWhitelisted: true` | Extra field sent? → **400 error** (instead of silently dropping it) |
-| `transform: true` | Convert plain JSON into the DTO class and fix types (`"5"` → `5`) |
+| Option                       | Simple meaning                                               |
+|------------------------------|--------------------------------------------------------------|
+| `whitelist: true`            | Only allow fields declared in the DTO (the data-shape class) |
+| `forbidNonWhitelisted: true` | Extra field? → **400 error** (not silently dropped)          |
+| `transform: true`            | JSON → a real DTO class object, and fix types (`"5"` → `5`)  |
 
 🛡️ Why it matters: someone can't sneak `"isAdmin": true` into a signup request (the **mass assignment** attack).
 
@@ -98,9 +100,9 @@ curl localhost:3000/health
 
 ## ⚠️ Interview traps
 
-| They say… | You say… |
-|---|---|
-| "So the controller should talk to the DB directly?" | No. Controller → service → DB. Keep HTTP and logic separate. |
-| "Make every module `@Global`, it's easier!" | Only for truly shared things (DB, config). Too many globals hide dependencies. |
-| "Missing env var? Just default it to something." | Required config should **fail fast at startup** (`getOrThrow`), not break later in production. |
-| "`??` and `\|\|` are the same?" | `??` only falls back on `null`/`undefined`; `\|\|` also falls back on `0`, `''` and `false`. |
+| They say…                                   | You say…                                                       |
+|---------------------------------------------|----------------------------------------------------------------|
+| "Controller talks to the DB directly?"      | No. Controller → service → DB. Keep layers separate            |
+| "Make every module `@Global`, easier!"      | Only shared things (DB, config). Globals hide deps             |
+| "Missing env var? Default it to something." | No! **Fail fast** at startup (`getOrThrow`)                    |
+| "`??` and `\|\|` are the same?"             | `??`: only `null`/`undefined`. `\|\|`: also `0`, `''`, `false` |

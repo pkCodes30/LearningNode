@@ -1,0 +1,13 @@
+{
+  // Nest decorators need TypeScript (Node can't run decorator syntax yet), so these demos are compiled:
+  //   npx tsc -p playground/nest-decorators && node playground/nest-decorators/dist/01-injectable.js
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["*.ts"]
+}

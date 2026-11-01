@@ -8,6 +8,10 @@ Demos (each is a `.cjs` file, i.e. classic CommonJS, which is what interview que
 ```bash
 node playground/day02/01-order.cjs
 node playground/day02/02-io.cjs
+node playground/day02/03-async-await.cjs
+node playground/day02/04-starvation.cjs nextTick      # then: … immediate
+node playground/day02/05-micro-after-each.cjs
+node playground/day02/06-esm-twist.cjs                # then: … .mjs (bonus, section 9)
 ```
 
 ---
@@ -229,6 +233,33 @@ timeout 2
 (Very old Node, 10 and below, printed `timeout 1, timeout 2, promise 1, promise 2`. Many old blog posts and AI answers still say "after each phase", so be careful!)
 
 🧠 **Memory hook:** "**After every customer, check the VIP line.**" Not after every counter: after every *customer*.
+
+## 9. 🧩 Bonus: the ESM twist (N before P… except in ESM!)
+
+The same 4 lines, in two files: `06-esm-twist.cjs` (CommonJS) and `06-esm-twist.mjs` (ESM).
+```js
+setTimeout(() => console.log('T'), 0);
+Promise.resolve().then(() => console.log('P'));
+process.nextTick(() => console.log('N'));
+console.log('S');
+```
+**Predict:** is the order the same in both files?
+
+<details><summary>👀 Real output + why</summary>
+
+```
+$ node playground/day02/06-esm-twist.cjs      →  S N P T     (3 runs out of 3)
+$ node playground/day02/06-esm-twist.mjs      →  S P N T     (3 runs out of 3)
+```
+- **CJS:** the file runs as a normal callback. When it ends, Node empties the **nextTick** line first, then the
+  **Promise** line. That's the classic "N before P".
+- **ESM:** loading an ES module is itself **promise-based**, so your top-level code runs **inside** a promise job.
+  When your sync code ends, V8 is still busy emptying the **Promise** line, so `P` goes first. Node gets its turn
+  for **nextTick** only after that.
+- ⚠️ **In this repo, every `.js` file is ESM** (`"type": "module"` in `package.json`). That's why the Day 2 puzzles use `.cjs`.
+- 🎤 **Interview:** say "N before P" (the classic answer), then add "except at the top level of an ES module,
+  where promises can run first". That one line shows real depth.
+</details>
 
 ---
 

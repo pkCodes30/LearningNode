@@ -485,12 +485,12 @@ The first version passed the first 11 tests. Then 4 edge-case tests were added (
 
 🔧 **Fix:**
 
-| Problem                                   | What happens                               |
-|-------------------------------------------|--------------------------------------------|
-| `throw new Error('TODO')` after `return`  | dead code (lint: `no-unreachable`)         |
-| `!Array.isArray(items)` → `resolve([])`   | a `Set` silently becomes `[]`: data lost!  |
-| same check, input `undefined`             | gives `[]`; the real one: `TypeError`      |
-| `limit` = 0                               | nothing ever starts → hangs **forever**    |
+| Problem                                  | What happens                              |
+|------------------------------------------|-------------------------------------------|
+| `throw new Error('TODO')` after `return` | dead code (lint: `no-unreachable`)        |
+| `!Array.isArray(items)` → `resolve([])`  | a `Set` silently becomes `[]`: data lost! |
+| same check, input `undefined`            | gives `[]`; the real one: `TypeError`     |
+| `limit` = 0                              | nothing ever starts → hangs **forever**   |
 
 Real output, yours vs the real `Promise.all`:
 ```
@@ -508,8 +508,239 @@ yours: promisePool(tasks, 0)         ✅ ⏳ still pending after 300 ms
 
 ---
 
-*Still open (they open Day 4): fix the build to 15/15 · the 2 explain-back questions · puzzles 5–6 ·
-the Day 3 interview round.*
+## 10. 🔁 Recall check (Day 4 opening, 11-01)
+
+Try each one from memory first. The answers are hidden.
+
+**R1.** A handler takes 300 ms. The 3 calls don't depend on each other:
+```js
+const user = await getUser(id);            // 100 ms
+const cart = await getCart(id);            // 100 ms
+const recs = await getRecommendations(id); // 100 ms
+```
+Make it ~100 ms. If `getCart` fails after 10 ms, what happens? Why is that safer than
+"start all three, then `await` them one by one"?
+
+<details><summary>✅ Answer</summary>
+
+```js
+const [user, cart, recs] = await Promise.all([getUser(id), getCart(id), getRecommendations(id)]);
+```
+- **~100 ms:** all three **start together**, and `Promise.all` waits for the slowest.
+- **`getCart` fails at 10 ms:** `Promise.all` **rejects right away** (fail-fast). Your `try/catch`
+  (or Nest's exception filter) sends an error response. The other two keep running; their results are ignored.
+- **Why it's safer:** with `const p1 = getUser(id); const p2 = getCart(id); await p1; await p2;`, p2 fails while we're
+  still stuck on `await p1`. Nobody is listening to p2 yet → **unhandled rejection** → since Node 15 the **whole
+  process crashes**, for every user (puzzle 2). `Promise.all` puts a handler on every promise at once, so the error
+  is always caught.
+
+*Your answer (11-01): "Promise.all will immediately reject at the 10 ms mark". That's the first half only:
+no code, and no "why it's safer".*
+</details>
+
+**R2.** Login uses `bcrypt.hashSync(password, 12)` (~250 ms). 20 users log in at once.
+What happens to a 21st user who only calls `GET /health`? What's the fix?
+
+<details><summary>✅ Answer</summary>
+
+- They wait **~5 s** (20 × 250 ms), or even time out. `hashSync` runs on the **main thread**, so the 20 hashes run
+  back to back, and the event loop can't handle anything else, not even a tiny `/health`.
+- **Fix:** the async version, `await bcrypt.hash(password, 12)`. The hashing runs on the **libuv thread pool**,
+  the main thread stays free, and `/health` answers in ~1 ms.
+- **Follow-up an interviewer may ask: "So now logins are fast?"** No. 20 hashes on 4 pool threads = **5 waves**
+  of ~250 ms, so the last login still takes ~1.25 s. The work is the same; it just stops blocking everyone else.
+  More help: raise `UV_THREADPOOL_SIZE` up to the core count, rate-limit login (Day 23), or use worker threads.
+
+*Your answer (11-01): the 5 s and the "why" were right, but the **fix** (half the question) was missing.*
+</details>
+
+**R3.** Which use the libuv thread pool? (a) `fs.readFile` (b) a Postgres query (c) `crypto.pbkdf2`
+(d) `http.get('https://example.com')`
+
+<details><summary>✅ Answer</summary>
+
+| Call                 | Pool?             | Why                                                   |
+|----------------------|-------------------|-------------------------------------------------------|
+| (a) `fs.readFile`    | ✅ yes            | no portable async file API, so libuv uses a thread    |
+| (b) Postgres query   | ❌ no             | it's a **socket**; the OS watches it (epoll / kqueue) |
+| (c) `crypto.pbkdf2`  | ✅ yes            | heavy CPU math, done off the main thread              |
+| (d) `http.get(host)` | only the DNS step | the request is a socket ❌, but `dns.lookup` ✅       |
+
+- **(d) in detail:** in JS, `dns.lookup` is async (it takes a callback). Under the hood it calls the OS function
+  `getaddrinfo()`, which **blocks**, so libuv runs it on a pool thread. (`dns.resolve*` asks DNS servers over the
+  network instead, so it doesn't use the pool.)
+- *Correction to the pasted answer (11-01): "dns.lookup is synchronous" isn't quite right. The JS function is
+  async; it's the C function underneath that blocks.*
+
+🎤 **Spoken version:**
+> "File system and crypto use the pool, so `readFile` and `pbkdf2`, yes. A Postgres query, no: it's a socket,
+> and the OS watches it with epoll or kqueue. `http.get`: the request itself doesn't, but resolving the hostname
+> goes through `dns.lookup`, which calls the blocking `getaddrinfo`, so that step runs on the pool.
+> That's why a pool busy with password hashing can even slow down outgoing HTTP calls."
+</details>
+
+## 11. 📝 Revision Q&A: Day 3 interview questions
+
+These are the questions interviewers ask on this topic. **Say your answer out loud first**, then open the box.
+
+**Q1. Callbacks vs promises vs async/await: what's the difference?**
+<details><summary>✅ Answer</summary>
+
+All three handle "this finishes later" work. A **callback** is a function you pass in; Node calls it with
+`(err, result)` when done. Nested callbacks become "callback hell", and it's easy to forget an error.
+A **promise** is an object for a future value: `pending` → `fulfilled` or `rejected`, and it settles only once.
+Promises chain with `.then`/`.catch`, so the pyramid becomes flat. **async/await** is nicer syntax over promises:
+an `async` function always returns a promise, and `await` pauses only that function, so errors go to a normal
+`try/catch`. (Section 1.)
+</details>
+
+**Q2. Does `await` block the thread?**
+<details><summary>✅ Answer</summary>
+
+No. `await` pauses **only the current async function**. The rest of that function becomes a microtask that runs when
+the promise settles. Meanwhile the main thread is free, and the event loop keeps serving other requests.
+</details>
+
+**Q3. Concurrency vs parallelism: which one does Node do?**
+<details><summary>✅ Answer</summary>
+
+**Concurrency** = many tasks *in progress* at once; their waiting overlaps. Node does this on one thread:
+100 DB queries can wait at the same time. **Parallelism** = tasks *running* at the same instant on different CPU
+cores. Your JS doesn't do that by itself; you need `worker_threads` (or more processes). Behind the scenes, libuv's
+thread pool does run some work in parallel (file I/O, crypto). *Ek waiter, kai tables = concurrency;
+kai waiters = parallelism.*
+</details>
+
+**Q4. `Promise.all` vs `allSettled` vs `race` vs `any`?**
+<details><summary>✅ Answer</summary>
+
+- `all`: waits for all, values in **input** order, **fail-fast** on the first rejection.
+- `allSettled`: waits for all, **never rejects**, gives `{ status, value | reason }` for each.
+- `race`: the first to **settle**, pass or fail. Classic use: a timeout.
+- `any`: the first **success**; rejects with `AggregateError` only if all fail.
+
+The full spoken answer is in section 4.
+</details>
+
+**Q5. One promise in `Promise.all` fails. Do the others stop?**
+<details><summary>✅ Answer</summary>
+
+No. Promises **can't be cancelled**; `Promise.all` only stops **waiting**. The other tasks keep running in the
+background (puzzle 4: the order and the invoice were still saved after the user got an error). If the steps must
+succeed or fail together, use a DB **transaction**. To really stop work, pass an `AbortSignal` to APIs that
+support it, like `fetch`.
+</details>
+
+**Q6. How do you put a timeout on a promise?**
+<details><summary>✅ Answer</summary>
+
+Race it against a timer that rejects, and **clear the timer** afterwards:
+```js
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+```
+Without `clearTimeout`, the leftover timer keeps the process alive (~2001 ms instead of ~604 ms in the demo).
+The slow work itself still runs; `race` doesn't cancel it. For `fetch`, `AbortSignal.timeout(ms)` really cancels.
+</details>
+
+**Q7. What blocks the event loop?**
+<details><summary>✅ Answer</summary>
+
+Any long **synchronous** work on the main thread: `…Sync` APIs in a request handler (`readFileSync`, `pbkdf2Sync`,
+`bcrypt.hashSync`), `JSON.parse` of a huge body, heavy loops or sorting, a catastrophic regex (**ReDoS**), and
+endless microtasks (recursive `process.nextTick`). While it runs, no other request, timer or callback can move.
+Fixes: the async version (thread pool), split the work into chunks, `worker_threads`, or a job queue.
+</details>
+
+**Q8. What is the libuv thread pool, and what uses it?**
+<details><summary>✅ Answer</summary>
+
+A small pool of helper threads, **4 by default** (`UV_THREADPOOL_SIZE`, set before Node starts). It runs work the
+OS can't do asynchronously: file system calls, `dns.lookup`, crypto like `pbkdf2`/`scrypt`, and zlib. **Network I/O
+doesn't use it**: the OS watches sockets itself (epoll/kqueue). When the 4 threads are busy, new jobs wait in a
+queue, so even a tiny file read can wait behind heavy hashes (puzzle 6). The full spoken answer is in section 8.
+</details>
+
+**Q9. ★ Live coding: implement `Promise.all`.**
+<details><summary>✅ Answer (tested: passes all 15 tests)</summary>
+
+```js
+export function promiseAll(items) {
+  return new Promise((resolve, reject) => {
+    const list = Array.from(items); // any iterable works; undefined throws a TypeError → the promise rejects
+    const results = Array.from({ length: list.length });
+    let done = 0;
+    if (list.length === 0) return resolve(results);
+
+    list.forEach((item, i) => {
+      Promise.resolve(item).then((value) => {
+        results[i] = value; // save at its own index → INPUT order
+        done++;
+        if (done === list.length) resolve(results);
+      }, reject); // the first rejection wins; later calls are ignored
+    });
+  });
+}
+```
+How to explain it, line by line:
+- `Array.from(items)`: accepts any iterable (a `Set` too). For `undefined` it throws, and a throw inside the
+  `new Promise` callback **rejects** the promise, just like the real `Promise.all`.
+- `Promise.resolve(item)`: turns plain values into promises, so `[1, delay(10, 2)]` works.
+- `results[i] = value`: each value goes into **its own slot**, so the order is the input order, not the finish order.
+- `done` counter: the promises finish in random order, so we count; when `done === list.length`, everyone is done.
+- `reject` as the 2nd argument of `.then`: the first failure rejects at once (fail-fast). Every promise has a
+  handler, so a 2nd failure can't crash anything.
+- No `isRejected` flag needed: a promise **settles only once**, so extra `resolve`/`reject` calls are ignored.
+- The empty check: without it, `done === 0` is never reached by any callback, and the promise hangs forever.
+</details>
+
+**Q10. ★ Live coding: run async tasks with a concurrency limit (a "promise pool").**
+<details><summary>✅ Answer (tested: passes all 15 tests)</summary>
+
+```js
+export async function promisePool(tasks, limit) {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError(`limit must be a whole number >= 1, got ${limit}`);
+  }
+  const results = Array.from({ length: tasks.length });
+  let next = 0; // index of the next task to start
+
+  // One worker = one "slot". It keeps taking the next task until none are left.
+  async function worker() {
+    while (next < tasks.length) {
+      const i = next++; // take a ticket (safe: this line runs without any await in between)
+      results[i] = await tasks[i]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, worker);
+  await promiseAll(workers);
+  return results;
+}
+```
+How to explain it:
+- **Why `tasks` are functions:** a promise starts the moment it's created (puzzle 1, case D). If you passed
+  promises, all the work would already be running and there'd be nothing left to limit.
+- **`limit` workers:** each worker is a slot. When its task finishes, the `while` loop takes the next one
+  **right away**, so no slot waits for a whole batch (that's the "refills a free slot" test).
+- **`next++` has no race condition:** JS runs one thing at a time, and `const i = next++` happens with no `await`
+  in between, so two workers can never take the same index.
+- **Order:** `results[i]` again keeps the input order.
+- **Errors:** if a task fails (or throws synchronously), its worker rejects, so `promiseAll` rejects, so the pool
+  rejects. **`limit < 1`** would hang forever (no workers), so it fails loudly with a `RangeError` instead.
+- **Real use:** send 10,000 emails, but at most 10 at a time, so you don't overload the mail server or the DB pool.
+- Your own version (event-based `runNext()`) is also a correct design; it reached 12/15. The 3 misses are listed
+  in the section 9 review.
+</details>
+
+---
+
+*Optional: fix your own `promise-utils.js` to 15/15 (the reference answers are in Q9–Q10).*
 
 ## ⚠️ Interview traps (so far)
 

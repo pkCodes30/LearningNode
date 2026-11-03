@@ -183,7 +183,133 @@ the empty DTO rejects every field, so "unknown field → 400" and "PATCH bad ema
 5. Where exactly does `ParseIntPipe` go, and what type does `id` become?
 6. (Part 2) `update`/`delete` on a missing id throw **P2025**, not `null`. Which decorator makes `DELETE` reply 204?
 
-*(Your solution, the review and your explain-back go here once you've written it.)*
+### 🔍 Round 1: your work in progress (11-02)
+
+**a) The 400 you hit while testing by hand.** Real output (your running dev server):
+```
+$ curl -X POST localhost:3000/users -H 'content-type: application/json' --data-binary '"{\n email: \"asha@shop.dev\"}"'
+{"message":"Unexpected token '\"', \"\"{\n email:\"... is not valid JSON","error":"Bad Request","statusCode":400}
+
+$ curl -X POST localhost:3000/users -H 'content-type: application/json' -d '{"email":"not-an-email"}'
+{"message":["email must be an email","password must be a string","name must be a string",
+ "age must be a number conforming to the specified constraints"],"error":"Bad Request","statusCode":400}
+```
+- The body was a JSON **string** (the object wrapped in quotes), not a JSON **object**. Express's JSON parser only
+  accepts an object `{…}` or an array `[…]` at the top, so it failed **before** Nest or your code ran.
+- **Send it right in Thunder Client** (the VS Code extension you use):
+  1. New Request → method **POST** → URL `http://localhost:3000/users`
+  2. **Body** tab → **JSON** sub-tab (it sets `Content-Type: application/json` for you)
+  3. Type the object with **no quotes around it** and **double quotes on every key**:
+     ```json
+     {"email": "asha@shop.dev", "name": "Asha"}
+     ```
+  4. Send, and read the **status** next to the response (201, 400, 409…), not only the body.
+- ❌ `"{ email: … }"` = a JSON **string** (what you sent). ❌ `{ email: "…" }` = not JSON (keys need quotes).
+  ✅ `{"email": "…"}`. With curl: `-d '{"email":"…"}'`.
+- Tip: save one request per test case in a Thunder Client collection (create, bad email, duplicate, `/users/abc`,
+  missing id…). Then you can re-check everything with one click after each change.
+- The 2nd output proves the parser is fine with an object: now your **DTO** answers (it demands extra fields).
+
+**b) 🧠 Prisma queries are lazy.** Real output (scratch copy, real DB):
+```
+without await → rows saved: 0
+with await    → rows saved: 1
+unknown fields, not awaited → no error yet, typeof then: function
+unknown fields, awaited → PrismaClientValidationError | Unknown argument `password`. Available options are marked with ?.
+```
+- `this.prisma.user.create({ … })` alone does **nothing**. A Prisma query is a "lazy promise": it only runs
+  when you `await` it (or call `.then`). So in round 1 nothing was saved, and no error could show up either.
+- Once you do `await` it, fields that aren't columns in `schema.prisma` (`password`, `age`) make Prisma throw
+  `PrismaClientValidationError`: not an `HttpException`, so the client would get a **500**.
+
+**c) 🧠 The `.then` trap in your `findAll`.** Your code:
+```ts
+findAll() {
+  const users = this.prisma.user.findMany().then((users) => {
+    console.log('users', users);
+  });
+  console.log('users', users);
+  return { message: 'This action returns all users', users: users, status: 200 };
+}
+```
+Real output: your dev server, then the same shape in plain Node (fake 10 ms "DB call"):
+```
+GET /users → {"message":"This action returns all users","users":{},"status":200}  [200]
+
+outside      : Promise { <pending> }
+as JSON      : {"users":{}}
+inside .then : [ { id: 1, email: 'asha@shop.dev' } ]
+awaited      : undefined
+```
+- `users` is **not** the array. It's the **promise** that `.then()` returns.
+- The 2nd `console.log` runs **before** the DB answers (Day 2–3: sync code first, callbacks later), so it shows
+  `Promise { <pending> }`.
+- Your `.then` callback logs the array but **returns nothing**, so the promise ends up holding `undefined`.
+- A promise **inside** an object becomes `{}` in JSON. Nest only waits for a promise you **return directly**.
+- **Fix pattern:** make the method `async` and return the Prisma result itself. Nest awaits it and sends the array:
+  ```ts
+  async findAll() {
+    return this.prisma.user.findMany({ orderBy: { id: 'asc' } });
+  }
+  ```
+
+**d) Review notes on round 1:**
+
+1. **`CreateUserDto`** has `password`, `age` and a required `name`. They aren't columns in the `User` table.
+   The spec is `email` (required) + `name` (optional, max 100).
+2. **Service methods** call Prisma without `await`, so the query never runs (b). Make them `async` and `await`.
+3. **Service returns** `{ message, status: 201, user: dto }`: an echo of the input, with no `id`.
+   Return what Prisma gives you (the saved user).
+4. **`status: 200` in the body** doesn't set the HTTP status. Nest already sends 201/200; errors use exceptions.
+5. **Controller:** `ParseIntPipe` ✅ good, but `id` is now a **number**, so type it `number` and drop the `+`.
+6. **Missing:** `findOne` → `null` must become `NotFoundException`; `create` → P2002 must become `ConflictException`.
+7. **`console.log`** in the service: remove it (proper logging comes on Day 26).
+
+- Passwords come on **Day 22**, and then they're **hashed** (argon2/bcrypt), never stored as plain text.
+
+### ✅ Final version (11-03, written by Claude at the learner's request, with line-by-line comments)
+
+Read the files themselves; every important line has a comment explaining **what** and **why**:
+- `src/users/dto/create-user.dto.ts`: `@IsEmail() email`, plus `@IsOptional() @IsString() @MaxLength(100) name?`
+- `src/users/dto/update-user.dto.ts`: `PartialType(CreateUserDto)`
+- `src/users/users.service.ts`: Prisma injected; `findOne` checks `null` → `NotFoundException`
+- `src/users/users.controller.ts`: `ParseIntPipe` + `id: number`; `@HttpCode(204)` on delete
+- `src/users/entities/` deleted (the Prisma-generated `User` type replaces it)
+- The 409 and 404 for P2002/P2025 come from the **global Prisma exception filter** (Day 10, `notes/09` §4).
+
+Result: `npm run test:e2e` → **Tests 24 passed (24)** (all 15 `/users` tests + 7 lifecycle tests + 2 old ones),
+`npm test` → 3 passed, `npm run lint` → clean.
+
+The service, shortened (comments removed here):
+```ts
+create(dto: CreateUserDto): Promise<User> {
+  return this.prisma.user.create({ data: dto });                 // dup email → P2002 → filter → 409
+}
+findAll(): Promise<User[]> {
+  return this.prisma.user.findMany({ orderBy: { id: 'asc' } });
+}
+async findOne(id: number): Promise<User> {
+  const user = await this.prisma.user.findUnique({ where: { id } });
+  if (!user) throw new NotFoundException(`User ${id} not found`); // null is not an error → check it
+  return user;
+}
+update(id: number, dto: UpdateUserDto): Promise<User> {
+  return this.prisma.user.update({ where: { id }, data: dto });   // missing → P2025 → filter → 404
+}
+async remove(id: number): Promise<void> {
+  await this.prisma.user.delete({ where: { id } });              // missing → P2025 → filter → 404
+}
+```
+- **Why plain `return` is fine here (and §6 said `return await`):** §6 is about returning **inside a `try`**.
+  There's no `try/catch` in this service anymore, so the rejected promise simply travels up to Nest, and the
+  filter answers. Nest awaits whatever you return.
+- **Why `findOne` is `async` but `findAll` isn't:** `findOne` has to **look at** the result (is it `null`?), so it
+  must `await`. `findAll` just hands the promise to Nest.
+
+🗣️ **Explain back (answer in your own words):**
+1. `update` and `remove` never check for a missing user, yet a missing id gives 404. Where does that 404 come from?
+2. Why does `findOne` check for `null` itself, instead of relying on the filter too?
+3. What would happen to a duplicate email if the `PrismaExceptionFilter` were deleted?
 
 ## 9. 📝 Revision Q&A: Day 9 interview questions
 
@@ -264,3 +390,4 @@ that was the difference between a correct 409 and a 500 for a duplicate email.
 | "e2e tests use the pipes from `main.ts`."    | No: `createNestApplication()` skips `main.ts`      |
 | "Unit tests can use the real DB service."    | Use a fake/mock provider; stay offline             |
 | "Params are numbers if typed `number`."      | They're strings. `ParseIntPipe` converts + checks  |
+| "Calling `create()` saves the row."          | Only when **awaited**: Prisma queries are lazy     |

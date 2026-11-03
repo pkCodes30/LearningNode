@@ -1,0 +1,13 @@
+{
+  // Nest decorators need TypeScript, so the .ts demos here are compiled:
+  //   npx tsc -p playground/day10 && node playground/day10/dist/01-lifecycle.js
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["*.ts"]
+}

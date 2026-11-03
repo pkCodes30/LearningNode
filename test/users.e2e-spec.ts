@@ -36,7 +36,11 @@ describe('/users (e2e)', () => {
     // The same global pipe as src/main.ts. createNestApplication() does NOT run main.ts,
     // so without this line these tests would run with no validation at all.
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     await app.init();
     prisma = app.get(PrismaService);
@@ -52,7 +56,10 @@ describe('/users (e2e)', () => {
     let created: UserJson;
 
     it('POST /users creates a user → 201 + the user as JSON', async () => {
-      const res = await api().post('/users').send({ email, name: 'Asha' }).expect(201);
+      const res = await api()
+        .post('/users')
+        .send({ email, name: 'Asha' })
+        .expect(201);
       expect(res.body).toMatchObject({ email, name: 'Asha' });
       expect(typeof res.body.id).toBe('number');
       expect(res.body.createdAt).toBeDefined();
@@ -60,12 +67,18 @@ describe('/users (e2e)', () => {
     });
 
     it('POST /users without a name → 201 (name is optional)', async () => {
-      const res = await api().post('/users').send({ email: uniqueEmail('noname') }).expect(201);
+      const res = await api()
+        .post('/users')
+        .send({ email: uniqueEmail('noname') })
+        .expect(201);
       expect(res.body.name).toBeNull();
     });
 
     it('POST /users with a bad email → 400', async () => {
-      const res = await api().post('/users').send({ email: 'not-an-email' }).expect(400);
+      const res = await api()
+        .post('/users')
+        .send({ email: 'not-an-email' })
+        .expect(400);
       expect(res.body.message).toContain('email must be an email');
     });
 
@@ -84,7 +97,9 @@ describe('/users (e2e)', () => {
     it('GET /users → 200 + an array that includes the new user', async () => {
       const res = await api().get('/users').expect(200);
       expect(Array.isArray(res.body)).toBe(true);
-      expect((res.body as UserJson[]).some((user) => user.id === created.id)).toBe(true);
+      expect(
+        (res.body as UserJson[]).some((user) => user.id === created.id),
+      ).toBe(true);
     });
 
     it('GET /users/:id → 200 + that user', async () => {
@@ -108,25 +123,45 @@ describe('/users (e2e)', () => {
 
     // These users are created straight in the DB, so part 2 works even before POST does.
     beforeAll(async () => {
-      ravi = await prisma.user.create({ data: { email: uniqueEmail('ravi'), name: 'Ravi' } });
-      meera = await prisma.user.create({ data: { email: uniqueEmail('meera') } });
+      ravi = await prisma.user.create({
+        data: { email: uniqueEmail('ravi'), name: 'Ravi' },
+      });
+      meera = await prisma.user.create({
+        data: { email: uniqueEmail('meera') },
+      });
     });
 
     it('PATCH /users/:id changes only the sent fields → 200', async () => {
-      const res = await api().patch(`/users/${ravi.id}`).send({ name: 'Ravi K' }).expect(200);
-      expect(res.body).toMatchObject({ id: ravi.id, email: ravi.email, name: 'Ravi K' });
+      const res = await api()
+        .patch(`/users/${ravi.id}`)
+        .send({ name: 'Ravi K' })
+        .expect(200);
+      expect(res.body).toMatchObject({
+        id: ravi.id,
+        email: ravi.email,
+        name: 'Ravi K',
+      });
     });
 
     it('PATCH /users/:id with a bad email → 400', async () => {
-      await api().patch(`/users/${ravi.id}`).send({ email: 'nope' }).expect(400);
+      await api()
+        .patch(`/users/${ravi.id}`)
+        .send({ email: 'nope' })
+        .expect(400);
     });
 
     it("PATCH /users/:id with someone else's email → 409", async () => {
-      await api().patch(`/users/${ravi.id}`).send({ email: meera.email }).expect(409);
+      await api()
+        .patch(`/users/${ravi.id}`)
+        .send({ email: meera.email })
+        .expect(409);
     });
 
     it(`PATCH /users/${MISSING_ID} → 404`, async () => {
-      await api().patch(`/users/${MISSING_ID}`).send({ name: 'Ghost' }).expect(404);
+      await api()
+        .patch(`/users/${MISSING_ID}`)
+        .send({ name: 'Ghost' })
+        .expect(404);
     });
 
     it('DELETE /users/:id → 204 with an empty body, then GET → 404', async () => {

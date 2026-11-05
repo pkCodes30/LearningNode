@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
+import { validateEnv } from './config/env.validation.js';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
 import { HealthModule } from './health/health.module.js';
@@ -16,7 +17,10 @@ import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // A dynamic module (notes/10 §4): reads `.env` + the real environment, and makes ConfigService
+    // injectable everywhere (`isGlobal`). `validate` runs ONCE at startup: if any variable is missing or
+    // wrong, the app refuses to start with one clear message (src/config/env.validation.ts).
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     PrismaModule,
     HealthModule,
     UsersModule,

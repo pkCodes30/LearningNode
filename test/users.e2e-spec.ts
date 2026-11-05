@@ -1,8 +1,8 @@
 // Day 9 acceptance tests for /users. Claude wrote these; YOU write the code in src/users/ that makes them pass.
 //   npm run test:e2e                     → everything
 //   npm run test:e2e -- -t "part 1"      → only part 1 (create + read)
-// They use the real local DB. Every user they create has an email starting with "e2e-",
-// and they delete those users at the end.
+// They use the separate test database (test/global-setup.ts), never the dev one. Every user they
+// create has an email starting with "e2e-", and they delete those users at the end.
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
